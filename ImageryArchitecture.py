@@ -1,6 +1,6 @@
 import sys
 
-DEBUG = False # True
+DEBUG = True # True
 
 class Input:
     def __init__(self, relation, obj1, obj2):
@@ -52,14 +52,14 @@ class ImageryArch:
     # objects with each link being the target relation
     def queryRelation(self, obj1, obj2, target_relation):
         if DEBUG:
-            print("\n\nQuerying relation", target_relation,"between", obj1, obj2)
+            print("\nQuerying relation", target_relation,"between", obj1, obj2)
 
         relations = []
         front = []
         explored = []
         images = self.stm.imagesByObj[obj2]
         if DEBUG:
-            print("#images of ", obj2, len(images))
+            print("\nExploring", obj2, ", Number of images containing information for that:", len(images))
         for image in images:
             if image in explored:
                 continue
@@ -69,11 +69,12 @@ class ImageryArch:
         while len(front) > 0:
             object = front.pop()
             if object.obj_label == obj1:
+                print("The relation", target_relation, " holds true between", obj1, "and", obj2 )
                 return True
             else:
                 images = self.stm.imagesByObj[object.obj_label]
                 if DEBUG:
-                    print("#images of ", object.obj_label, len(images))
+                    print("\nExploring", object.obj_label, ", Number of images containing information for that:", len(images))
                 for image in images:
                     if image in explored:
                         continue
@@ -85,15 +86,15 @@ class ImageryArch:
     # with the target relation and extend the frontier with those objects
     def extendFrontier(self, obj1_label, image, front, target_relation):
         if DEBUG:
-            print("extend front with obj:", obj1_label, len(front)), "for target_relation:", target_relation
+            print("extend front with obj:", obj1_label, "current front length:", len(front), "for target_relation:", target_relation)
         obj1 = image.objects[obj1_label]
         if target_relation in obj1.relations:
             if obj1.relations[target_relation] is not None:
                 if DEBUG:
-                    print("extending frontier with rel:" , target_relation , "-", obj1.relations[target_relation].obj_label)
+                    print("extending frontier with obj:", obj1.relations[target_relation].obj_label)
                 front.append(obj1.relations[target_relation])
         if DEBUG:
-            print("after extending the front: ", len(front))
+            print("after extending the front length: ", len(front), " and frontier includes the following objects:")
             for object in front:
                 print(obj1_label , target_relation , object.obj_label)
 
@@ -107,17 +108,20 @@ class ImageryArch:
             if self.queryRelation(obj1, obj2, r):
                 relations[r] = True
 
-        print("Relation between", obj1, "and", obj2)
+        print("\n\nSpatial relation between", obj1, "and", obj2, ":")
         if len(relations) == 0:
             print("I don't know.")
         else:
             for r in relations:
                 print(r, "= true")
 
+        return relations
+
 # This is implementation specific functionality
-# It convevrts the inputs to images of objects and set their
+# It convevrts the textual inputs to images of objects and set their
 # corresponding spatial relationships.
 def create_input_image(input):
+    print("\n\nCreating image:")
     obj1 = Object(input.obj1)
     obj2 = Object(input.obj2)
     image = Image()
@@ -141,12 +145,12 @@ def create_input_image(input):
     print("\ncreated obj:", input.obj1)
     for r in obj1.relations:
         # if obj1.relations[r] is not None:
-        print("rel:" + r + "-", obj1.relations[r].obj_label)
+        print("rel:" + r , "-", obj1.relations[r].obj_label)
 
     print("\ncreated obj:", input.obj2)
     for r in obj2.relations:
         # if obj1.relations[r] is not None:
-        print("rel:" + r + "-", obj2.relations[r].obj_label)
+        print("rel:" + r , "-", obj2.relations[r].obj_label)
 
     return image
 
