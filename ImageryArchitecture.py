@@ -1,5 +1,7 @@
 import sys
 
+DEBUG = False # True
+
 class Input:
     def __init__(self, relation, obj1, obj2):
         self.relation = relation
@@ -13,10 +15,6 @@ class Input:
 class Object:
     def __init__(self, obj_label):
         self.relations = {}
-        # self.relations["left"] = None
-        # self.relations["right"] = None
-        # self.relations["above"] = None
-        # self.relations["bottom"] = None
         self.obj_label = obj_label
         pass
 
@@ -25,39 +23,12 @@ class Image:
         self.objects = {}
         pass
 
-    def merge_image(self, image):
-        for object in image.objects:
-            if object in self.objects:
-                s = image.objects[object]
-                t = self.objects[object]
-                if s.left == None and t.right == None:
-                    t.right = s.right
-                    s.left = t
-                elif s.right == None and t.left == None:
-                    t.left = s.left
-                    s.left.right = t
-                elif s.above == None and t.bottom == None:
-                    t.bottom = s
-                    s.above = t
-                elif s.bottom == None and t.above == None:
-                    t.above = s
-                    s.bottom = t
-        pass
-
 class ShortTermMemory:
     def __init__(self):
         self.imagesByObj = {}
         print("Constructing ShortTermMemory")
 
     def addImage(self, image):
-        # for obj in image.objects:
-        #     if obj in self.imagesByObj:
-        #         images_of_object = self.imagesByObj[obj]
-        #         for image in images_of_object:
-        #             image.merge_image(image)
-        #         images_of_object.append(image)
-        #     else:
-        #         self.imagesByObj[obj] = [image]
         for obj_label in image.objects:
             if obj_label in self.imagesByObj:
                 self.imagesByObj[obj_label].append(image)
@@ -66,21 +37,29 @@ class ShortTermMemory:
     def printImages(self):
         pass
 
+# This is the root class that supports imagery based spatial relathionship reasoning
+# To construct an instance of this class a set of spatial relationships must be provided
+# It uses a short term memory to that memorizes the images and helps querying
 class ImageryArch:
 
-    def __init__(self):
+    def __init__(self, target_relations):
         print("Constructing imagery arch")
         self.stm = ShortTermMemory()
+        self.target_relations = target_relations
 
+    # queries whether a particular relation holds between two objects
+    # a relation between two objects holds true if and only if there is a path between the two
+    # objects with each link being the target relation
     def queryRelation(self, obj1, obj2, target_relation):
-
-        print("\n\nQuerying relation", target_relation,"between", obj1, obj2)
+        if DEBUG:
+            print("\n\nQuerying relation", target_relation,"between", obj1, obj2)
 
         relations = []
         front = []
         explored = []
         images = self.stm.imagesByObj[obj2]
-        print("#images of ", obj2, len(images))
+        if DEBUG:
+            print("#images of ", obj2, len(images))
         for image in images:
             if image in explored:
                 continue
@@ -93,7 +72,8 @@ class ImageryArch:
                 return True
             else:
                 images = self.stm.imagesByObj[object.obj_label]
-                print("#images of ", object.obj_label, len(images))
+                if DEBUG:
+                    print("#images of ", object.obj_label, len(images))
                 for image in images:
                     if image in explored:
                         continue
@@ -101,33 +81,31 @@ class ImageryArch:
                     self.extendFrontier(object.obj_label, image, front, target_relation)
         return False
 
-    # find all the objects other than obj1 in the image that has a relation with obj1
-    # and extend the front with these objects and their relations with obj1
+    # find all the objects other than obj1 in the image that are realated with obj1
+    # with the target relation and extend the frontier with those objects
     def extendFrontier(self, obj1_label, image, front, target_relation):
-        print("extend front with obj:", obj1_label, len(front)), "for target_relation:", target_relation
+        if DEBUG:
+            print("extend front with obj:", obj1_label, len(front)), "for target_relation:", target_relation
         obj1 = image.objects[obj1_label]
         if target_relation in obj1.relations:
             if obj1.relations[target_relation] is not None:
-                print("extending frontier with rel:" , target_relation , "-", obj1.relations[target_relation].obj_label)
+                if DEBUG:
+                    print("extending frontier with rel:" , target_relation , "-", obj1.relations[target_relation].obj_label)
                 front.append(obj1.relations[target_relation])
+        if DEBUG:
+            print("after extending the front: ", len(front))
+            for object in front:
+                print(obj1_label , target_relation , object.obj_label)
 
-        print("after extending the front: ", len(front))
-        for object in front:
-            print(obj1_label , target_relation , object.obj_label)
-
+    # queries what relations hold between obj1 and obj2
     def query(self, obj1, obj2):
 
         print("\n\nQuerying relation between", obj1, obj2)
 
         relations = {}
-        if self.queryRelation(obj1, obj2, "above"):
-            relations["above"] = True
-        if self.queryRelation(obj1, obj2, "left"):
-            relations["left"] = True
-        if self.queryRelation(obj1, obj2, "right"):
-            relations["right"] = True
-        if self.queryRelation(obj1, obj2, "bottom"):
-            relations["bottom"] = True
+        for r in self.target_relations:
+            if self.queryRelation(obj1, obj2, r):
+                relations[r] = True
 
         print("Relation between", obj1, "and", obj2)
         if len(relations) == 0:
@@ -136,6 +114,9 @@ class ImageryArch:
             for r in relations:
                 print(r, "= true")
 
+# This is implementation specific functionality
+# It convevrts the inputs to images of objects and set their
+# corresponding spatial relationships.
 def create_input_image(input):
     obj1 = Object(input.obj1)
     obj2 = Object(input.obj2)
@@ -167,12 +148,11 @@ def create_input_image(input):
         # if obj1.relations[r] is not None:
         print("rel:" + r + "-", obj2.relations[r].obj_label)
 
-
     return image
 
 # The fork is to the left of the plate. The plate is to the left of the knife.
 def test1():
-    imageArch = ImageryArch()
+    imageArch = ImageryArch(["left", "right", "above", "bottom"])
 
     imageArch.stm.addImage(create_input_image(Input("left", "fork", "plate")))
     imageArch.stm.addImage(create_input_image(Input("left", "plate", "knife")))
@@ -184,7 +164,7 @@ def test1():
 
 # The fork is to the left of the plate. The plate is above the napkin
 def test2():
-    imageArch = ImageryArch()
+    imageArch = ImageryArch(["left", "right", "above", "bottom"])
 
     imageArch.stm.addImage(create_input_image(Input("left", "fork", "plate")))
     imageArch.stm.addImage(create_input_image(Input("above", "plate", "napkin")))
@@ -192,5 +172,74 @@ def test2():
     imageArch.query("fork", "napkin")
     print("\nTest 2 finished")
 
+
+# The fork is to the left of the plate. The spoon is to the left of the plate.
+def test3():
+    imageArch = ImageryArch(["left", "right", "above", "bottom"])
+
+    imageArch.stm.addImage(create_input_image(Input("left", "fork", "plate")))
+    imageArch.stm.addImage(create_input_image(Input("left", "spoon", "plate")))
+
+    imageArch.query("fork", "spoon")
+    print("\nTest 3 finished")
+
+
+
+# The fork is to the left of the plate. The spoon is to the left of the fork. The knife is to the left
+# of the spoon. The pizza is to the left of the knife. The cat is to the left of the pizza.
+def test4():
+    imageArch = ImageryArch(["left", "right", "above", "bottom"])
+
+    imageArch.stm.addImage(create_input_image(Input("left", "fork", "plate")))
+    imageArch.stm.addImage(create_input_image(Input("left", "spoon", "fork")))
+    imageArch.stm.addImage(create_input_image(Input("left", "knife", "spoon")))
+    imageArch.stm.addImage(create_input_image(Input("left", "pizza", "knife")))
+    imageArch.stm.addImage(create_input_image(Input("left", "cat", "pizza")))
+
+    imageArch.query("plate", "cat")
+    print("\nTest 4 finished")
+
+
+
+# The plate is to the right of the fork. The knife is to the right of the plate.
+def test5():
+    imageArch = ImageryArch(["left", "right", "above", "bottom"])
+
+    imageArch.stm.addImage(create_input_image(Input("right", "plate", "fork")))
+    imageArch.stm.addImage(create_input_image(Input("right", "knife", "plate")))
+
+    imageArch.query("fork", "knife")
+    print("\nTest 5 finished")
+
+
+# The plate is to the right of the fork. The knife is to the right of the plate. The pizza is to the left of the fork
+def test6():
+    imageArch = ImageryArch(["left", "right", "above", "bottom"])
+
+    imageArch.stm.addImage(create_input_image(Input("right", "plate", "fork")))
+    imageArch.stm.addImage(create_input_image(Input("right", "knife", "plate")))
+    imageArch.stm.addImage(create_input_image(Input("left", "pizza", "fork")))
+
+    imageArch.query("pizza", "knife")
+    print("\nTest 6 finished")
+
+
+
 if __name__ == "__main__":
-    test1()
+    if len(sys.argv)> 1:
+        if sys.argv[1] == "1":
+            test1()
+        elif sys.argv[1] == "2":
+            test2()
+        elif sys.argv[1] == "3":
+            test3()
+        elif sys.argv[1] == "4":
+            test4()
+        elif sys.argv[1] == "5":
+            test5()
+        elif sys.argv[1] == "6":
+            test6()
+        else:
+            test6()
+    else:
+        test6()
