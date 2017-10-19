@@ -93,17 +93,17 @@ class ImageryArch:
         relations = []
         front = []
         explored = []
-        images = self.stm.imagesByObj[obj1]
-        print("#images of ", obj1, len(images))
+        images = self.stm.imagesByObj[obj2]
+        print("#images of ", obj2, len(images))
         for image in images:
             if image in explored:
                 continue
             explored.append(image)
-            self.extendFrontier(obj1, image, front, relations)
+            self.extendFrontier(obj2, image, front, relations)
 
         while len(front) > 0:
             (object, relation, relations) = front.pop()
-            if object.obj_label == obj2:
+            if object.obj_label == obj1:
                 if relation not in relations:
                     relations.append(relation)
                 print("Relation between ", obj1, "and", obj2)
@@ -172,5 +172,17 @@ def test1():
 
     print("\nTest 1 finished")
 
+
+# The fork is to the left of the plate. The plate is above the napkin
+def test2():
+    pd = ImageryArch()
+
+    pd.stm.addImage(create_input_image(Input("left", "fork", "plate")))
+    pd.stm.addImage(create_input_image(Input("above", "plate", "napkin")))
+
+    pd.query("fork", "napkin")
+
+    print("\nTest 2 finished")
+
 if __name__ == "__main__":
-    test1()
+    test2()
